@@ -1,6 +1,6 @@
 import { createStore, StateCreator, StoreApi } from "zustand";
 import { devtools } from "zustand/middleware";
-import produce from "immer";
+import { produce } from "immer";
 import { createContext } from "react";
 
 import {

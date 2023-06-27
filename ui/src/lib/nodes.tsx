@@ -68,7 +68,7 @@ export function useYjsObserver() {
 
             break;
           default:
-            throw new Error("Unknown action", change.action);
+            throw new Error(`Unknown action ${change.action}`);
         }
       });
       // TOFIX: a node may be shadowed behind its parent, due to the order to
