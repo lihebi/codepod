@@ -56,7 +56,7 @@ services:
     image: node:18
     working_dir: /app
     # For react hot-reloading in development. We're disabling it because
-    # hot-reloading seems not ideal for complex apps It almost always reloads
+    # hot-reloading seems not ideal for complex apps. It almost always reloads
     # only part of the app, causing weird behaviors. As a result, we are always
     # hard-reloading the page anyway.
     #
