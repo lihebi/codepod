@@ -105,8 +105,13 @@ import "./remirror-size.css";
 import { ProsemirrorPlugin, cx, htmlToProsemirrorNode } from "remirror";
 import { styled } from "@mui/material";
 
+import "./math/math.css";
+import "katex/dist/katex.min.css";
+
 import { MyYjsExtension } from "./YjsRemirror";
 import { NewPodButtons } from "./utils";
+
+import { LatexExtension, MyTestExtension } from "./RemirrorLatex";
 
 function useLinkShortcut() {
   const [linkShortcut, setLinkShortcut] = useState<
@@ -256,6 +261,30 @@ function useUpdatePositionerOnMove() {
   return;
 }
 
+const ToggleLatexButton = (props) => {
+  const { toggleLatex } = useCommands<LatexExtension>();
+
+  const handleSelect = useCallback(() => {
+    if (toggleLatex.enabled()) {
+      toggleLatex();
+    }
+  }, [toggleLatex]);
+
+  // const active = useActive<LatexExtension>().bold();
+  const enabled = toggleLatex.enabled();
+
+  return (
+    <CommandButton
+      {...props}
+      commandName="toggleLatex"
+      // active={active}
+      enabled={enabled}
+      onSelect={handleSelect}
+      icon={<FormatColorResetIcon />}
+    />
+  );
+};
+
 const EditorToolbar = () => {
   const {
     isEditing,
@@ -303,6 +332,7 @@ const EditorToolbar = () => {
           <ToggleUnderlineButton />
           <ToggleStrikeButton />
           <ToggleCodeButton />
+          <ToggleLatexButton />
           {activeLink && (
             <CommandButton
               commandName="updateLink"
@@ -545,6 +575,8 @@ const MyEditor = ({
   const ref = useRef<HTMLDivElement>(null);
   const { manager, state, setState } = useRemirror({
     extensions: () => [
+      new LatexExtension(),
+      new MyTestExtension(),
       new PlaceholderExtension({ placeholder }),
       // new BoldExtension(),
       // new ItalicExtension(),
@@ -631,6 +663,7 @@ const MyEditor = ({
                   }
                 }
                 setPodContent({ id, content: nextState.doc.toJSON() });
+                console.log("===", nextState.doc.toString());
               }
             }}
           >
