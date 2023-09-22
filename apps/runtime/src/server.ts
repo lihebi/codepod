@@ -144,13 +144,13 @@ export type KernelSpec = {
   kernel_name: string;
 };
 
-export function startServer({
+export async function startServer({
   spec,
   port,
 }: {
   spec: KernelSpec;
   port: number;
-}) {
+}): Promise<http.Server> {
   const expapp = express();
   const http_server = http.createServer(expapp);
   const wss = new WebSocketServer({ server: http_server });
@@ -200,8 +200,10 @@ export function startServer({
     });
   });
 
-  http_server.listen({ port }, () => {
-    console.log(`🚀 WS_server ready at http://localhost:${port}`);
+  return new Promise((resolve, reject) => {
+    http_server.listen({ port }, () => {
+      console.log(`🚀 WS_server ready at http://localhost:${port}`);
+      resolve(http_server);
+    });
   });
-  return http_server;
 }
