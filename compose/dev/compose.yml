@@ -118,6 +118,19 @@ services:
       YJS_WS_URL: "ws://web-yjs:4233/socket"
       JWT_SECRET: ${JWT_SECRET}
 
+  web-container-example:
+    build:
+      context: .
+    ports:
+      - 4023:4021
+    working_dir: /codepod/apps/web-container
+    volumes:
+      - ../..:/codepod
+      - pnpm-store:/codepod/.pnpm-store
+    command: bash -c "corepack enable && pnpm dev"
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+
   web-yjs:
     image: node:18
     working_dir: /codepod/apps/web-yjs
@@ -155,7 +168,7 @@ services:
       VITE_APP_YJS_WS_URL: "ws://localhost:4233/socket"
       VITE_APP_API_URL: "http://localhost:4000/graphql"
       # Native spawner
-      VITE_APP_SPAWNER_API_URL: "http://localhost:4022/graphql"
+      VITE_APP_SPAWNER_API_URL: "http://localhost:4023/graphql"
       # Docker spawner
       # VITE_APP_SPAWNER_API_URL: "http://localhost:4021/graphql"
     volumes:
