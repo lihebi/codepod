@@ -15,6 +15,7 @@ import { WebsocketProvider } from "@codepod/yjs/src/y-websocket";
 import WebSocket from "ws";
 
 import { connectSocket, runtime2socket, RuntimeInfo } from "./yjs-runtime";
+import { connectKernel, createKernel, getRepo, manager } from "./manager";
 
 interface TokenInterface {
   id: string;
@@ -100,25 +101,57 @@ export async function startAPIServer({ port, spawnRuntime, killRuntime }) {
       }
 
       type Mutation {
-        spawnRuntime(runtimeId: String, repoId: String): Boolean
-        killRuntime(runtimeId: String, repoId: String): Boolean
+        createKernel(
+          runtimeId: String
+          repoId: String
+          yjsUrl: String
+          yjsToken: String
+        ): Boolean
+        connectKernel(kernelId: String): Boolean
+        disconnectKernel(kernelId: String): Boolean
 
-        connectRuntime(runtimeId: String, repoId: String): Boolean
-        disconnectRuntime(runtimeId: String, repoId: String): Boolean
-        runCode(runtimeId: String, spec: RunSpecInput): Boolean
-        runChain(runtimeId: String, specs: [RunSpecInput]): Boolean
-        interruptKernel(runtimeId: String): Boolean
-        requestKernelStatus(runtimeId: String): Boolean
+        # spawnRuntime(runtimeId: String, repoId: String): Boolean
+        # killRuntime(runtimeId: String, repoId: String): Boolean
+
+        # connectRuntime(runtimeId: String, repoId: String): Boolean
+        # disconnectRuntime(runtimeId: String, repoId: String): Boolean
+        # runCode(runtimeId: String, spec: RunSpecInput): Boolean
+        # runChain(runtimeId: String, specs: [RunSpecInput]): Boolean
+        # interruptKernel(runtimeId: String): Boolean
+        # requestKernelStatus(runtimeId: String): Boolean
       }
     `,
     resolvers: {
       Query: {},
       Mutation: {
+        createKernel: async (_, { repoId, yjsUrl, yjsToken }, { userId }) => {
+          const repo = manager.getRepo({ repoId });
+          // FIXME a different user would change the yjsToken
+          repo.yjsUrl = yjsUrl;
+          repo.yjsToken = yjsToken;
+          const kernelId = await repo.createKernel({
+            repoId,
+            yjsUrl,
+            yjsToken,
+          });
+          return kernelId;
+        },
+        connectKernel: async (_, { kernelId }, { userId }) => {
+          await connectKernel({ kernelId });
+          return true;
+        },
+        // disconnectKernel: async (_, { kernelId }, { userId }) => {
+        //   await disconnectKernel({ kernelId });
+        //   return true;
+        // },
+
         spawnRuntime: async (_, { runtimeId, repoId }, { token, userId }) => {
           // TODO verify repoId is owned by userId
           if (!userId) throw new Error("Not authorized.");
           // create the runtime container
-          const wsUrl = await spawnRuntime(runtimeId);
+          const runtimeInfo = await spawnRuntime(runtimeId);
+          // kernelInfoMap.set(runtimeId, runtimeInfo);
+          const wsUrl = `ws://localhost:${runtimeId.ws_port}`;
           console.log("Runtime spawned at", wsUrl);
           routingTable.set(runtimeId, wsUrl);
           // set initial runtimeMap info for this runtime
@@ -132,7 +165,13 @@ export async function startAPIServer({ port, spawnRuntime, killRuntime }) {
         },
         killRuntime: async (_, { runtimeId, repoId }, { token, userId }) => {
           if (!userId) throw new Error("Not authorized.");
-          await killRuntime(runtimeId);
+          // const info = kernelInfoMap.get(runtimeId);
+          // if (!info) {
+          //   console.warn(`WARN Runtime ${runtimeId} not found`);
+          //   return;
+          // }
+          // kernelInfoMap.delete(runtimeId);
+          // await killRuntime(info);
           console.log("Removing route ..");
           // remove from runtimeMap
           const doc = await getMyYDoc({ repoId, token });
@@ -270,6 +309,33 @@ export async function startAPIServer({ port, spawnRuntime, killRuntime }) {
   const expapp = express();
   const http_server = http.createServer(expapp);
   // graphql api will be available at /graphql
+
+  // ws
+  const wss = new WebSocketServer({ noServer: true });
+  wss.on("connection", (ws, request) => {
+    console.log("ws connected");
+    // get repo ID
+    const url = new URL(`ws://${request.headers.host}${request.url}`);
+    if (request.url) {
+      const docName = request.url.slice(1).split("?")[0];
+      const token = url.searchParams.get("token");
+      const repoId = docName.split("/")[1];
+      console.log("repoId", repoId);
+      const repo = getRepo({ repoId });
+      repo.addWs(ws);
+      ws.onclose = () => {
+        console.log("ws closed");
+        repo.removeWs(ws);
+        if (repo.wsSet?.size === 0) {
+          // FIXME wait for kernel to be idle
+          console.log("TODO no more ws for this repo, closing yjs connection");
+          // disconnectKernel({ kernelId: repoId });
+        }
+      };
+    } else {
+      throw new Error("request.url is undefined");
+    }
+  });
 
   await apollo.start();
   apollo.applyMiddleware({ app: expapp });
