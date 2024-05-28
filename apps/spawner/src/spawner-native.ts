@@ -5,7 +5,7 @@ import http from "http";
 
 import { startServer } from "@codepod/runtime";
 
-type KernelInfo = {
+export type KernelInfo = {
   // the kernel
   zmq_proc: ChildProcessWithoutNullStreams;
   spec: KernelSpec;
@@ -13,8 +13,6 @@ type KernelInfo = {
   ws_server: http.Server;
   ws_port: number;
 };
-
-const id2KernelInfo = new Map<string, KernelInfo>();
 
 const usedPorts = new Set<number>();
 
@@ -105,17 +103,11 @@ export async function spawnRuntime(runtimeId) {
     ws_server: server,
     ws_port: port,
   };
-  id2KernelInfo.set(runtimeId, runtimeInfo);
-  return `ws://localhost:${port}`;
+  return runtimeInfo;
 }
 
-export async function killRuntime(runtimeId) {
+export async function killRuntime(info: KernelInfo) {
   // free resources
-  const info = id2KernelInfo.get(runtimeId);
-  if (!info) {
-    console.warn(`WARN Runtime ${runtimeId} not found`);
-    return;
-  }
   // kill the kernel process and free the ports
   info.zmq_proc.kill();
   usedPorts.delete(info.spec.shell_port);
